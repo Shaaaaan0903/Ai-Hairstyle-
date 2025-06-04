@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hairstyle AI</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; }
+  #videoContainer { position: relative; width: 100%; max-width: 600px; }
+  video { width: 100%; border-radius: 10px; }
+  #canvas { display: none; max-width: 100%; margin-top: 10px; border: 1px solid #ccc; border-radius: 10px; }
+  button { margin: 10px 5px; padding: 10px 15px; font-size: 16px; }
+  #prompt { color: red; font-weight: bold; margin-top: 15px; animation: pulse 1.5s infinite; }
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+  #results { margin-top: 30px; }
+  .section { margin-bottom: 25px; }
+  .hairstyle { display: inline-block; width: 45%; margin: 5px; vertical-align: top; }
+  .hairstyle img { width: 100%; height: auto; border-radius: 8px; }
+  .hairstyle-name { text-align: center; margin-top: 5px; }
+  #loading {
+    display: none;
+    font-weight: bold;
+    font-size: 18px;
+    color: #0066cc;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<h1>Get Your Hairstyle Recommendation</h1>
+
+<div id="videoContainer">
+  <video id="video" autoplay playsinline></video>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<div>
+  <button id="uploadPicBtn">Upload Picture</button>
+  <input type="file" id="fileInput" accept="image/*" style
