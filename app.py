@@ -80,12 +80,28 @@ def analyze():
     results = face_mesh.process(image_rgb)
 
     face_shape = "Unknown"
+    obstruction_detected = False
+
     if results.multi_face_landmarks:
         landmarks = results.multi_face_landmarks[0].landmark
         h, w, _ = image.shape
         face_shape = detect_face_shape(landmarks, w, h)
 
+        # Visibility check for key landmarks (eyes, nose, mouth, chin)
+        key_indices = [1, 4, 9, 13, 33, 263]  # Nose, chin, lips, eyes
+        for idx in key_indices:
+            pt = landmarks[idx]
+            if hasattr(pt, 'visibility') and (pt.visibility < 0.5 or pt.presence < 0.5):
+                obstruction_detected = True
+                break
+    else:
+        obstruction_detected = True
+
+    if obstruction_detected:
+        return render_template('index.html', error="Face not clearly visible. Please remove mask, glasses or obstructions.")
+
     return redirect(url_for('result', shape=face_shape))
+
 
 @app.route('/result')
 def result():

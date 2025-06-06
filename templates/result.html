@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Face Shape Result</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(to right, #f0f2f5, #dfe9f3);
+            padding: 40px 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            color: #2d2d2d;
+        }
+
+        p {
+            font-size: 20px;
+            margin-bottom: 30px;
+            color: #444;
+        }
+
+        .hairstyle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .hairstyle-card {
+            background: #ffffffcc;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .hairstyle-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .hairstyle-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+        }
+
+        .hairstyle-card h3 {
+            margin: 10px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .save-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .save-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Your Face Shape is:</h1>
+        <p>{{ face_shape }}</p>
+
+        <div class="hairstyle-grid">
+            {% if face_shape == "Round" %}
+                <div class="hairstyle-card">
+                    <img src="/static/hairstyles/round1.jpg" alt="Pompadour">
+                    <h3>Pompadour</h3>
+                </div>
+                <div class="hairstyle-card">
+                    <img src="/static/hairstyles/round2.jpg" alt="High Volume Fade">
+                    <h3>High Volume Fade</h3>
+                </div>
+            {% elif face_shape == "Oval" %}
+                <div class="hairstyle-card">
+                    <img src="/static/hairstyles/oval1.jpg" alt="Buzz Cut">
+                    <h3>Buzz Cut</h3>
+                </div>
+                <div class="hairstyle-card">
+                    <img src="/static/hairstyles/oval2.jpg" alt="Slick Back">
+                    <h3>Slick Back</h3>
+                </div>
+            {% elif face_shape == "Heart" %}
+                <div class="hairstyle-card">
+                    <img src="/static/hairstyles/heart1.jpg" alt="Side Fringe">
+                    <h3>Side Fringe</h3>
+                </div>
+                <div class="hairstyle-card">
+                    <img src="/static/hairstyles/heart2.jpg" alt="Layered Top">
+                    <h3>Layered Top</h3>
+                </div>
+            {% else %}
+                <p>No recommendations available.</p>
+            {% endif %}
+        </div>
+
+        <button class="save-btn" onclick="downloadImage()">Save My Result</button>
+    </div>
+
+    <script>
+        function downloadImage() {
+            const link = document.createElement('a');
+            link.href = '/static/input.jpg';
+            link.download = 'my_face_shape_result.jpg';
+            link.click();
+        }
+    </script>
+
+</body>
+</html>

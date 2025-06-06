@@ -1,44 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Hairstyle AI</title>
-<style>
-  body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; }
-  #videoContainer { position: relative; width: 100%; max-width: 600px; }
-  video { width: 100%; border-radius: 10px; }
-  #canvas { display: none; max-width: 100%; margin-top: 10px; border: 1px solid #ccc; border-radius: 10px; }
-  button { margin: 10px 5px; padding: 10px 15px; font-size: 16px; }
-  #prompt { color: red; font-weight: bold; margin-top: 15px; animation: pulse 1.5s infinite; }
-  @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-  }
-  #results { margin-top: 30px; }
-  .section { margin-bottom: 25px; }
-  .hairstyle { display: inline-block; width: 45%; margin: 5px; vertical-align: top; }
-  .hairstyle img { width: 100%; height: auto; border-radius: 8px; }
-  .hairstyle-name { text-align: center; margin-top: 5px; }
-  #loading {
-    display: none;
-    font-weight: bold;
-    font-size: 18px;
-    color: #0066cc;
-    margin-top: 10px;
-  }
-</style>
+    <meta charset="UTF-8">
+    <title>AI Hairstyle Detector</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            background: url('https://www.freepik.com/free-photo/love-friendship-relationships-concept-heafshot-young-couple-spending-time-together-indoors_9660916.htm#fromView=search&page=1&position=2&uuid=56267a9b-b32f-4078-bf94-d0645085ca96&query=Man+And+Woman+hairstyle') no-repeat center center/cover;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 40px;
+            text-align: center;
+            color: #fff;
+            max-width: 400px;
+        }
+
+        .glass-card h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .glass-card input,
+        .glass-card button {
+            margin: 10px 0;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .glass-card input[type="file"] {
+            background: #fff;
+            color: #333;
+        }
+
+        .glass-card button {
+            background-color: #00c6ff;
+            color: white;
+            transition: background 0.3s ease;
+        }
+
+        .glass-card button:hover {
+            background-color: #0072ff;
+        }
+
+        #videoElement {
+            width: 100%;
+            display: none;
+            margin-top: 10px;
+            border-radius: 10px;
+        }
+
+        #previewModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            align-items: center;
+            justify-content: center;
+        }
+
+        #modalContent {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        #modalContent img {
+            max-width: 100%;
+            border-radius: 10px;
+        }
+    </style>
 </head>
 <body>
-<h1>Get Your Hairstyle Recommendation</h1>
 
-<div id="videoContainer">
-  <video id="video" autoplay playsinline></video>
-</div>
+    <form id="imageForm" method="POST" enctype="multipart/form-data" action="/analyze">
+        <div class="glass-card">
+            <h1>Discover Your Face Shape</h1>
+            <input type="file" id="uploadInput" name="image" accept="image/*">
+            <br>
+            <button type="button" onclick="startCamera()">📸 Use Webcam</button>
+            <video id="videoElement" autoplay></video>
+            <button type="button" onclick="capturePhoto()">Take Photo</button>
+        </div>
+    </form>
 
-<canvas id="canvas"></canvas>
+    <div id="previewModal">
+        <div id="modalContent">
+            <h2>Is this okay?</h2>
+            <img id="previewImage" src="" alt="Preview">
+            <br><br>
+            <button onclick="submitImage()">Yes, Proceed</button>
+            <button onclick="closeModal()">No, Retake</button>
+        </div>
+    </div>
 
-<div>
-  <button id="uploadPicBtn">Upload Picture</button>
-  <input type="file" id="fileInput" accept="image/*" style
+    <script>
+        const video = document.getElementById('videoElement');
+        const uploadInput = document.getElementById('uploadInput');
+        const previewModal = document.getElementById('previewModal');
+        const previewImage = document.getElementById('previewImage');
+        let stream;
+
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(s => {
+                    stream = s;
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                });
+        }
+
+        function capturePhoto() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const dataURL = canvas.toDataURL('image/jpeg');
+            showPreview(dataURL);
+            stream.getTracks().forEach(track => track.stop());
+            video.style.display = 'none';
+        }
+
+        function showPreview(dataURL) {
+            previewImage.src = dataURL;
+            previewModal.style.display = 'flex';
+
+            fetch(dataURL)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], "capture.jpg", { type: 'image/jpeg' });
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    uploadInput.files = dataTransfer.files;
+                });
+        }
+
+        function closeModal() {
+            previewModal.style.display = 'none';
+        }
+
+        function submitImage() {
+            document.getElementById('imageForm').submit();
+        }
+
+        uploadInput.addEventListener('change', function () {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    showPreview(e.target.result);
+                }
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+    </script>
+
+</body>
+</html>
