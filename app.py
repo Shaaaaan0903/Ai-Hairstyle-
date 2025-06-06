@@ -1,101 +1,97 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, render_template, request, redirect, url_for
+
+import os
 import cv2
 import numpy as np
-import base64
 import mediapipe as mp
 
 app = Flask(__name__)
+UPLOAD_FOLDER = 'static'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# Initialize MediaPipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
+face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True)
 
-HAIRSTYLES = {
-    "oval": {
-        "male": [
-            {"name": "Classic Short", "img": "/static/male1.jpg"},
-            {"name": "Textured Crop", "img": "/static/male2.jpg"},
-        ],
-        "female": [
-            {"name": "Layered Bob", "img": "/static/female1.jpg"},
-            {"name": "Wavy Lob", "img": "/static/female2.jpg"},
-        ],
-    },
-    "round": {
-        "male": [
-            {"name": "Pompadour", "img": "/static/male3.jpg"},
-            {"name": "Side Part", "img": "/static/male4.jpg"},
-        ],
-        "female": [
-            {"name": "Asymmetrical Bob", "img": "/static/female3.jpg"},
-            {"name": "High Ponytail", "img": "/static/female4.jpg"},
-        ],
-    },
-    "square": {
-        "male": [
-            {"name": "Buzz Cut", "img": "/static/male1.jpg"},
-            {"name": "Crew Cut", "img": "/static/male2.jpg"},
-        ],
-        "female": [
-            {"name": "Straight Bob", "img": "/static/female1.jpg"},
-            {"name": "Side Swept Bangs", "img": "/static/female2.jpg"},
-        ],
-    },
-}
+def detect_face_shape(landmarks, image_width, image_height):
+    def to_pixel(point):
+        return int(point.x * image_width), int(point.y * image_height)
 
-def classify_face_shape(landmarks):
-    left = np.array(landmarks[234])
-    right = np.array(landmarks[454])
-    jaw = np.array(landmarks[152])
-    forehead = np.array(landmarks[10])
+    def dist(p1, p2):
+        x1, y1 = to_pixel(p1)
+        x2, y2 = to_pixel(p2)
+        return np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
-    width = np.linalg.norm(left - right)
-    height = np.linalg.norm(jaw - forehead)
-    ratio = height / width
+    # Get necessary landmarks
+    forehead_top = landmarks[10]
+    chin = landmarks[152]
+    jaw_left = landmarks[234]
+    jaw_right = landmarks[454]
+    cheek_left = landmarks[93]
+    cheek_right = landmarks[323]
+    temple_left = landmarks[338]
+    temple_right = landmarks[127]
 
-    if ratio > 1.4:
-        return "oval"
-    elif ratio > 1.2:
-        return "round"
+    # Measure distances
+    face_length = dist(forehead_top, chin)
+    forehead_width = dist(temple_left, temple_right)
+    cheekbone_width = dist(cheek_left, cheek_right)
+    jaw_width = dist(jaw_left, jaw_right)
+
+    # Ratios
+    width_avg = (forehead_width + cheekbone_width + jaw_width) / 3
+    length_ratio = face_length / width_avg
+
+    # Classification logic
+    if length_ratio < 1.1:
+        if abs(jaw_width - cheekbone_width) < 15:
+            return "Round"
+        else:
+            return "Square"
+    elif 1.1 <= length_ratio < 1.4:
+        if forehead_width > jaw_width:
+            return "Heart"
+        else:
+            return "Oval"
+    elif length_ratio >= 1.4:
+        return "Oblong"
     else:
-        return "square"
+        return "Unknown"
 
-def detect_accessories(image_rgb):
-    # Placeholder for accessories detection - always false for now
-    return False
 
-@app.route("/")
+@app.route('/')
 def index():
-    return render_template("index.html")
+    return render_template('index.html')
 
-@app.route("/analyze", methods=["POST"])
+@app.route('/analyze', methods=['POST'])
 def analyze():
-    data = request.json
-    img_data = data.get("image")
-    if not img_data:
-        return jsonify({"error": "No image provided"}), 400
+    file = request.files['image']
+    if not file:
+        return "No file uploaded", 400
 
-    header, encoded = img_data.split(",", 1)
-    decoded = base64.b64decode(encoded)
-    nparr = np.frombuffer(decoded, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'input.jpg')
+    file.save(filepath)
 
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    # Load image for face shape analysis
+    image = cv2.imread(filepath)
+    if image is None:
+        return "Invalid image", 400
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    results = face_mesh.process(image_rgb)
 
-    with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1) as face_mesh:
-        results = face_mesh.process(img_rgb)
-        if not results.multi_face_landmarks:
-            return jsonify({"error": "No face detected, please try again"}), 400
+    face_shape = "Unknown"
+    if results.multi_face_landmarks:
+        landmarks = results.multi_face_landmarks[0].landmark
+        h, w, _ = image.shape
+        face_shape = detect_face_shape(landmarks, w, h)
 
-        landmarks = []
-        for lm in results.multi_face_landmarks[0].landmark:
-            landmarks.append((lm.x, lm.y))
+    return redirect(url_for('result', shape=face_shape))
 
-        if detect_accessories(img_rgb):
-            return jsonify({"accessoryDetected": True, "message": "Please remove glasses, mask, or headwear and try again."})
+@app.route('/result')
+def result():
+    face_shape = request.args.get('shape', 'Unknown')
+    return render_template('result.html', face_shape=face_shape)
 
-        face_shape = classify_face_shape(landmarks)
-        hairstyles = HAIRSTYLES.get(face_shape, {"male": [], "female": []})
-
-        return jsonify({"face_shape": face_shape, "hairstyles": hairstyles, "accessoryDetected": False})
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
+
